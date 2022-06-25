@@ -3,67 +3,69 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 const express = require("express");
+const app = express();
 const path = require("path");
 const mongoose = require("mongoose");
-const ejsMate = require("ejs-mate");
 const session = require("express-session");
 const flash = require("connect-flash");
+const MongoDBStore = require("connect-mongo")(session);
+const restaurantRoutes = require("./routes/restaurants");
+const reviewRoutes = require("./routes/reviews");
+const userRoutes = require("./routes/users");
 const ExpressError = require("./utils/ExpressError");
 const methodOverride = require("method-override");
+const ejsMate = require("ejs-mate");
 const passport = require("passport");
-const localStrategy = require("passport-local");
+const LocalStrategy = require("passport-local");
 const User = require("./models/user");
-const helmet = require("helmet");
-
-const userRoutes = require("./routes/users");
-const campgroundsRoutes = require("./routes/campgrounds");
-const reviewsRoutes = require("./routes/reviews");
-const userAdminRoute = require("./routes/admin");
 const mongoSanitize = require("express-mongo-sanitize");
-const MongoStore = require("connect-mongo");
+const helmet = require("helmet");
+const dbUrl = process.env.DB_URL || "mongodb://localhost:27017/food-fiesta";
+// const dbUrl = "mongodb://localhost:27017/food-fiesta";
 
-const { scriptSrcUrls, styleSrcUrls, connectSrcUrls, fontSrcUrls } = require("./utils/cps");
-
-// const dbUrl = process.env.DB_URL;
-
-const dbUrl = "mongodb://localhost:27017/yelp-camp";
-mongoose.connect(dbUrl);
+mongoose.connect(dbUrl, {
+  useNewUrlParser: true,
+  useCreateIndex: true,
+  useUnifiedTopology: true,
+  useFindAndModify: false,
+});
 
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
 db.once("open", () => {
-  console.log("Database connected");
+  console.log("Database connected!");
 });
 
-const app = express();
-
 app.engine("ejs", ejsMate);
-app.set("view engine", "ejs");
+
 app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "ejs");
 
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
 app.use(express.static(path.join(__dirname, "public")));
-app.use(mongoSanitize());
+app.use(
+  mongoSanitize({
+    replaceWith: "_",
+  })
+);
 
-const secret = process.env.SECRET || "secret";
+const secret = process.env.SECRET || "thisshouldbeabettersecret";
 
-const store = MongoStore.create({
-  mongoUrl: dbUrl,
+const store = new MongoDBStore({
+  url: dbUrl,
+  secret,
   touchAfter: 24 * 60 * 60,
-  crypto: {
-    secret: secret,
-  },
 });
 
 store.on("error", function (e) {
-  console.log("SESSION STORE ERROR", e);
+  console.log("Session store error", e);
 });
 
 const sessionConfig = {
   store,
   name: "session",
-  secret: secret,
+  secret,
   resave: false,
   saveUninitialized: true,
   cookie: {
@@ -76,82 +78,85 @@ const sessionConfig = {
 
 app.use(session(sessionConfig));
 app.use(flash());
+app.use(helmet());
 
+const scriptSrcUrls = [
+  "https://stackpath.bootstrapcdn.com/",
+  "https://api.tiles.mapbox.com/",
+  "https://api.mapbox.com/",
+  "https://kit.fontawesome.com/",
+  "https://cdnjs.cloudflare.com/",
+  "https://cdn.jsdelivr.net",
+];
+const styleSrcUrls = [
+  "https://kit-free.fontawesome.com/",
+  "https://api.mapbox.com/",
+  "https://api.tiles.mapbox.com/",
+  "https://fonts.googleapis.com/",
+  "https://use.fontawesome.com/",
+  "https://cdn.jsdelivr.net",
+];
+const connectSrcUrls = [
+  "https://api.mapbox.com/",
+  "https://a.tiles.mapbox.com/",
+  "https://b.tiles.mapbox.com/",
+  "https://events.mapbox.com/",
+];
+const fontSrcUrls = [];
 app.use(
   helmet.contentSecurityPolicy({
     directives: {
-      defaultSrc: ["'self'"],
+      defaultSrc: [],
       connectSrc: ["'self'", ...connectSrcUrls],
       scriptSrc: ["'unsafe-inline'", "'self'", ...scriptSrcUrls],
       styleSrc: ["'self'", "'unsafe-inline'", ...styleSrcUrls],
-      fontSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrcAttr: ["'self'", "'unsafe-inline'"],
       workerSrc: ["'self'", "blob:"],
       objectSrc: [],
       imgSrc: [
         "'self'",
         "blob:",
         "data:",
-        "https://res.cloudinary.com/dswkd1tqw/", //SHOULD MATCH YOUR CLOUDINARY ACCOUNT!
+        "https://res.cloudinary.com/dwtkhznmd/", //SHOULD MATCH YOUR CLOUDINARY ACCOUNT!
         "https://images.unsplash.com/",
       ],
-
       fontSrc: ["'self'", ...fontSrcUrls],
-      mediaSrc: ["https://res.cloudinary.com/dswkd1tqw/"],
-      childSrc: ["blob:"],
     },
   })
 );
 
-// app.use(
-//   helmet({
-//     contentSecurityPolicy: {
-//       directives: {
-//         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-//         "img-src": ["'self'", "s3.amazonaws.com"],
-//       },
-//     },
-//   })
-// );
-app.locals.moment = require("moment");
 app.use(passport.initialize());
 app.use(passport.session());
-passport.use(new localStrategy(User.authenticate()));
-
+passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// Middleware to have access to anything stored in the flash under the key success/error etc. this makes it so we dont have to pass anything to our templates
 app.use((req, res, next) => {
-  // ignores this path's in the array.. since we dont want the user to click log-in page to log-in and be redirected to log-in page again..that wont make sense.
-  if (!["/login", "/", "/register"].includes(req.originalUrl)) {
-    req.session.returnTo = req.originalUrl;
-  }
   res.locals.currentUser = req.user;
   res.locals.success = req.flash("success");
   res.locals.error = req.flash("error");
   next();
 });
-// Router Handlers
-app.use("/", userAdminRoute);
+
+app.use("/restaurants", restaurantRoutes);
+app.use("/restaurants/:id/reviews", reviewRoutes);
 app.use("/", userRoutes);
-app.use("/campgrounds", campgroundsRoutes);
-app.use("/campgrounds/:id/reviews", reviewsRoutes);
 
 app.get("/", (req, res) => {
   res.render("home");
 });
 
 app.all("*", (req, res, next) => {
-  next(new ExpressError("Page Not Found", 404));
+  next(new ExpressError("Page not found!", 404));
 });
 
 app.use((err, req, res, next) => {
   const { statusCode = 500 } = err;
-  if (!err.message) err.message = "Oh No, Something Went Wrong!";
+  if (!err.message) err.message = "Oh no, Error!!!";
   res.status(statusCode).render("error", { err });
 });
+
 const port = process.env.PORT || 3000;
+
 app.listen(port, () => {
   console.log(`Serving on port ${port}`);
 });

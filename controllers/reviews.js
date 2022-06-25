@@ -1,22 +1,21 @@
-const Campground = require("../models/campground");
+const Restaurant = require("../models/restaurant");
 const Review = require("../models/review");
 
 module.exports.createReview = async (req, res) => {
-  const campground = await Campground.findById(req.params.id);
+  const restaurant = await Restaurant.findById(req.params.id);
   const review = new Review(req.body.review);
+  restaurant.reviews.push(review);
   review.author = req.user._id;
-  campground.reviews.push(review);
   await review.save();
-  await campground.save();
-  req.flash("success", "Created new review!");
-  res.redirect(`/campgrounds/${campground._id}`);
+  await restaurant.save();
+  req.flash("success", "Successfully added your review!");
+  res.redirect(`/restaurants/${restaurant._id}`);
 };
 
 module.exports.deleteReview = async (req, res) => {
   const { id, reviewId } = req.params;
-  // We are using $pull to remove the specific review we want to remove
-  await Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
+  await Restaurant.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
   await Review.findByIdAndDelete(reviewId);
-  req.flash("success", "Succesfully deleted review!");
-  res.redirect(`/campgrounds/${id}`);
+  req.flash("success", "Review deleted!");
+  res.redirect(`/restaurants/${id}`);
 };

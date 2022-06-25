@@ -1,48 +1,55 @@
 const mongoose = require("mongoose");
+const Restaurant = require("../models/restaurant");
 const cities = require("./cities");
-const { places, descriptors } = require("./seedHelpers");
-const Campground = require("../models/campground");
+const { places, descriptors, description } = require("./seedHelpers");
 
-const dbUrl = process.env.DB_URL || "mongodb://localhost:27017/yelp-camp";
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 
-mongoose.connect(dbUrl);
+const dbUrl = process.env.DB_URL || "mongodb://localhost:27017/food-fiesta";
 
-const db = mongoose.connection;
-
-db.on("error", console.error.bind(console, "connection error:"));
-db.once("open", () => {
-  console.log("Database connected");
+mongoose.connect(dbUrl, {
+  useNewUrlParser: true,
+  useCreateIndex: true,
+  useUnifiedTopology: true,
 });
 
-//
-const sample = (array) => array[Math.floor(Math.random() * array.length)];
+const db = mongoose.connection;
+db.on("error", console.error.bind(console, "connection error:"));
+db.once("open", () => {
+  console.log("Database connected!");
+});
+
+const sample = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 const seedDB = async () => {
-  await Campground.deleteMany({});
-  for (let i = 0; i < 20; i++) {
-    //Doing 1000 because we have 1000 cities in the cities.js array
-    const random1000 = Math.floor(Math.random() * 1000);
-    const price = Math.floor(Math.random() * 20) + 10;
-    const camp = new Campground({
-      //YOUR USER ID
-      author: "62851422c311a7e6fef2ce8c",
-      location: `${cities[random1000].city} , ${cities[random1000].state}`,
+  await Restaurant.deleteMany({});
+  for (let i = 0; i < 300; i++) {
+    const random1000 = Math.floor(Math.random() * 400);
+    const restt = new Restaurant({
       title: `${sample(descriptors)} ${sample(places)}`,
-      description:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis porta lacus libero, sagittis volutpat enim porta sed. Mauris libero nibh, posuere at porttitor eget, commodo sit amet risus. Integer auctor, sem auctor auctor porta, leo massa volutpat leo, non lobortis urna erat sed dolor. Donec sodales mollis leo non vulputate. Pellentesque non mi faucibus, tincidunt lorem vestibulum, luctus neque. Aenean tincidunt, justo non varius sagittis, purus quam posuere elit, in fermentum lacus lorem eget velit. Cras quis est nec odio dapibus tempor. Duis ultrices porta tempus.",
-      price,
-      geometry: {
-        type: "Point",
-        coordinates: [cities[random1000].longitude, cities[random1000].latitude],
-      },
+      location: `${cities[random1000].city}, ${cities[random1000].admin_name}`,
+      //Your User ID
+      author: "613b349088034c00169f5c7c",
       images: [
         {
-          url: "https://res.cloudinary.com/dswkd1tqw/image/upload/v1652889051/YelpCamp/fire.avif",
-          filename: "YelpCamp/fire.avif",
+          url: "https://res.cloudinary.com/dwtkhznmd/image/upload/v1631271104/FoodFiesta/photo-1514933651103-005eec06c04b_dbjaan.jpg",
+          filename: "FoodFiesta/photo-1514933651103-005eec06c04b_dbjaan",
+        },
+        {
+          url: "https://res.cloudinary.com/dwtkhznmd/image/upload/v1631252847/FoodFiesta/photo-1504754524776-8f4f37790ca0_kdyhjm.jpg",
+          filename: "FoodFiesta/photo-1504754524776-8f4f37790ca0_kdyhjm",
         },
       ],
+      geometry: {
+        type: "Point",
+        coordinates: [cities[random1000].lng, cities[random1000].lat],
+      },
+      description: `${sample(description)}`,
+      price: Math.floor(Math.random() * 1000) + 200,
     });
-    await camp.save();
+    await restt.save();
   }
 };
 
