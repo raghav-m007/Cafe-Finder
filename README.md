@@ -6,4 +6,3 @@
 -Supports Image Upload using cloud services and Cluster Maps using the Mapboxgl API
 
 
-Feel free to have a look here https://food-fiesta.herokuapp.com/
