@@ -1,8 +1,9 @@
 # CafeFinder
--Designed and implemented a restaurant/cafe review website that supports User Authentication, Authorization and full CRUD functionality for restaurants and reviews using Node.js and Express
 
--Designed and implemented MongoDB infrastructure to store reviews’ data and relevant information associated with users and sites
+Facing with the issue of finding nearby cafes along with their reviews, I designed and implemented this restaurant/cafe review website.
 
--Supports Image Upload using cloud services and Cluster Maps using the Mapboxgl API
+Included the image uploads and review system for better transparency and ease.
+
+Included Maps for finding nearby cafes and users can make a profile to post their reviews and upload out their experiences.
 
 
